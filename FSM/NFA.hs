@@ -5,7 +5,7 @@ module FSM.NFA where
         type NFA a = ([a],[Char], a->(Maybe Char)->[a], a, [a]) --try to derive Show, Read
         -- empty language (base NFA)
         empty:: a->NFA a
-        empty a = let delta a _ = [] in ([a],[],delta,a,[])
+        empty a = let delta _ _ = [] in ([a],[],delta,a,[])
 
         markStart:: (Eq a) => (NFA a)->a->(NFA a)
         markStart (x,sig,del,s,f) y = if (y `elem` x) then (x,sig,del,y,f) else (x,sig,del,s,f)
@@ -14,15 +14,15 @@ module FSM.NFA where
         addState (x,sig,del,s,f) y = if (y `elem` x) then (x,sig,del,s,f) else (y:x,sig,del,s,f)
 
         addTransition:: (Eq a) => (NFA a)->a->(Maybe Char)->a->(NFA a)
-        addTransition (x,sig,del,s,f) a Nothing c  = let newdel a Nothing
-                                                                | (a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
-                                                         newdel m n                                                    = del m n
+        addTransition (x,sig,del,s,f) a Nothing c  = let newdel m n
+                                                                | (m == a)&&(n == Nothing)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
+                                                                | otherwise                                                                               = del m n
                                                      in  (x,sig,newdel,s,f)
         addTransition (x,sig,del,s,f) a b c        = let newsig | ((maybe ' ' id b) `elem` sig) = sig
                                                                 | otherwise                     = (maybe ' ' id b):sig
-                                                         newdel a b
-                                                                | (a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a b))) = c:(del a b)
-                                                         newdel m n                                                      = del m n
+                                                         newdel m n
+                                                                | (m == a)&&(n == b)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a b))) = c:(del a b)
+                                                                | otherwise                                                                  = del m n
                                                      in  (x,newsig,newdel,s,f)
 
         markFinal:: (Eq a) => (NFA a)->a->(NFA a)
