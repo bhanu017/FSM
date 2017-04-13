@@ -15,7 +15,7 @@ module FSM.NFA where
 
         addTransition:: (Eq a) => (NFA a)->a->(Maybe Char)->a->(NFA a)
         addTransition (x,sig,del,s,f) a Nothing c  = let newdel a Nothing
-                                                       | (a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
+                                                                | (a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
                                                          newdel m n                                                    = del m n
                                                      in  (x,sig,newdel,s,f)
         addTransition (x,sig,del,s,f) a b c        = let newsig | ((maybe ' ' id b) `elem` sig) = sig
