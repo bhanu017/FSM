@@ -13,17 +13,17 @@ module FSM.NFA where
         addState:: (Eq a) => (NFA a)->a->(NFA a)
         addState (x,sig,del,s,f) y = if (y `elem` x) then (x,sig,del,s,f) else (y:x,sig,del,s,f)
 
-        addTransition:: (Eq a) => (NFA a)->a->(Maybe Char)->a->(NFA a)
-        addTransition (x,sig,del,s,f) a Nothing c  = let newdel m n
-                                                                | (m == a)&&(n == Nothing)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
-                                                                | otherwise                                                                               = del m n
-                                                     in  (x,sig,newdel,s,f)
-        addTransition (x,sig,del,s,f) a b c        = let newsig | ((maybe ' ' id b) `elem` sig) = sig
-                                                                | otherwise                     = (maybe ' ' id b):sig
-                                                         newdel m n
-                                                                | (m == a)&&(n == b)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a b))) = c:(del a b)
-                                                                | otherwise                                                                  = del m n
-                                                     in  (x,newsig,newdel,s,f)
+        addTransition:: (Eq a) => (NFA a)->((a,(Maybe Char)),a)->(NFA a)
+        addTransition (x,sig,del,s,f) ((a,Nothing),c)  = let newdel m n
+                                                                    | (m == a)&&(n == Nothing)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a Nothing)))  = c:(del a Nothing)
+                                                                    | otherwise                                                                               = del m n
+                                                         in  (x,sig,newdel,s,f)
+        addTransition (x,sig,del,s,f) ((a,b),c)        = let newsig | ((maybe ' ' id b) `elem` sig) = sig
+                                                                    | otherwise                     = (maybe ' ' id b):sig
+                                                             newdel m n
+                                                                    | (m == a)&&(n == b)&&(a `elem` x)&&(c `elem` x)&&(not (c `elem` (del a b))) = c:(del a b)
+                                                                    | otherwise                                                                  = del m n
+                                                         in  (x,newsig,newdel,s,f)
 
         markFinal:: (Eq a) => (NFA a)->a->(NFA a)
         markFinal (x,sig,del,s,f) a = if (a `elem` x)&&(not(a `elem` f)) then (x,sig,del,s,a:f) else (x,sig,del,s,f)
@@ -62,4 +62,17 @@ module FSM.NFA where
 
         sigma:: (NFA a)->[Char]
         sigma (_,sg,_,_,_) = sg
+
+        givestlist:: (NFA a)->[a]->(NFA a)
+        givestlist (q,sig,del,s,f) [] = (q,sig,del,s,f)
+        givestlist (q,sig,del,s,f) ql = (ql,sig,del,head ql,f)
+
+        giveflist:: (Eq a) => (NFA a)->[a]->(NFA a)
+        --giveflist (q,sig,del,s,f) [] = (q,sig,del,s,f)
+        giveflist (q,sig,del,s,f) fl = (q,sig,del,s,[fq | fq <- fl, fq `elem` q])
+
+        givetlist:: (Eq a) => (NFA a)->[((a,(Maybe Char)),a)]->(NFA a)
+        givetlist (q,sig,del,s,f) tl = foldr (flip addTransition) (q,sig,let delta _ _ = [] in delta,s,f) tl
+
+
 
