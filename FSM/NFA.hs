@@ -4,8 +4,8 @@ module FSM.NFA where
         import Data.List
         type NFA a = ([a],[Char], a->(Maybe Char)->[a], a, [a]) --try to derive Show, Read
         -- empty language (base NFA)
-        empty:: a->NFA a
-        empty a = let delta _ _ = [] in ([a],[],delta,a,[])
+        empty:: NFA ()
+        empty = let delta _ _ = [] in ([()],[],delta,(),[])
 
         markStart:: (Eq a) => (NFA a)->a->(NFA a)
         markStart (x,sig,del,s,f) y = if (y `elem` x) then (x,sig,del,y,f) else (x,sig,del,s,f)
@@ -97,6 +97,54 @@ module FSM.NFA where
                                                                 simulate n
                         else                                 do 
                                                                 putStrLn "NFA successfully simulated:"
+
+        --Functions applied on two NFAs (for Closure Properties)
+        concatNFA:: (Eq a, Eq b) => (NFA a)->(NFA b)->(NFA (Either a b))
+        concatNFA (q1,sig1,del1,s1,f1) (q2,sig2,del2,s2,f2) = let nq               = [Left q | q<-q1] ++ [Right q | q<-q2]
+                                                                  nsig             = nub (sig1 ++ sig2)
+                                                                  ndel (Left m) n    | (m `elem` f1)&&(n == Nothing)  = (Right s2):[Left q | q <- (del1 m Nothing)]
+                                                                                     | otherwise                      = [Left q | q <- (del1 m n)]
+                                                                  ndel (Right m) n = [Right q | q <- (del2 m n)]
+                                                                  ns               = Left s1
+                                                                  nf               = [Right q | q <- f2]
+                                                              in  (nq,nsig,ndel,ns,nf)
+
+        unionNFA:: (Eq a, Eq b) => (NFA a)->(NFA b)->(NFA (Either () (Either a b)))
+        unionNFA (q1,sig1,del1,s1,f1) (q2,sig2,del2,s2,f2)  = let ns                             = Left ()
+                                                                  nq                             = (Left ()):[Right (Left q) | q<-q1] ++ [Right (Right q) | q<-q2]
+                                                                  nsig                           = nub (sig1 ++ sig2)
+                                                                  ndel (Left ()) Nothing         = [Right (Left s1), Right (Right s2)]
+                                                                  ndel (Right (Left m)) n        = [Right (Left x) | x<-(del1 m n)]
+                                                                  ndel (Right (Right m)) n       = [Right (Right x) | x<-(del2 m n)]
+                                                                  ndel _ _                       = []
+                                                                  nf                             = [Right (Left x) | x<-f1] ++ [Right (Right x) | x<-f2]
+                                                              in  (nq,nsig,ndel,ns,nf)
+
+        intersectNFA:: (Eq a, Eq b) => (NFA a)->(NFA b)->(NFA (a,b))
+        intersectNFA (q1,sig1,del1,s1,f1) (q2,sig2,del2,s2,f2)    = let ns                                = (s1,s2)
+                                                                        nq                                = [(q,r) | q<-q1, r<-q2]
+                                                                        nsig                              = nub (sig1 ++ sig2)
+                                                                        nf                                = [(q,r) | q<-f1, r<-f2]
+                                                                        ndel (a,b) c                      = [(q,r) | q<-(del1 a c), r<-(del2 b c)]
+                                                                    in  (nq,nsig,ndel,ns,nf)
+
+        starNFA:: (Eq a) => (NFA a)->(NFA (Either () a))
+        starNFA (q1,sig1,del1,s1,f1)                        = let ns                         = Left ()
+                                                                  nq                         = (Left ()):[Right q | q<-q1]
+                                                                  nsig                       = sig1
+                                                                  nf                         = (Left ()):[Right q | q<-f1]
+                                                                  ndel (Left ()) Nothing     = [Right s1]
+                                                                  ndel (Right m) n           | (m `elem` f1)&&(n == Nothing)      = (Left ()):[Right q | q<-(del1 m Nothing)]
+                                                                                             | otherwise                          = [Right q | q<-(del1 m n)]
+                                                                  ndel _ _                   = []
+                                                              in  (nq,nsig,ndel,ns,nf)
+
+        
+
+
+
+
+
 
 
 
