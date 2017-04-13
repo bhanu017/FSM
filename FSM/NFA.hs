@@ -74,5 +74,29 @@ module FSM.NFA where
         givetlist:: (Eq a) => (NFA a)->[((a,(Maybe Char)),a)]->(NFA a)
         givetlist (q,sig,del,s,f) tl = foldr (flip addTransition) (q,sig,let delta _ _ = [] in delta,s,f) tl
 
+        simulate:: (Eq a, Read a) => (NFA a)->IO ()
+        simulate n = do
+                        putStrLn "function? 1-givestlist, 2-giveflist, 3-givetlist, 4-exec, 5-exit"
+                        choice <- getLine
+                        if ((read choice::Int) == 1) then do
+                                                            putStrLn "Give list of states:"
+                                                            stlist <- getLine
+                                                            simulate (givestlist n (read stlist))
+                        else if ((read choice::Int) == 2) then do
+                                                                putStrLn "Give list of final states:"
+                                                                flist <- getLine
+                                                                simulate (giveflist n (read flist))
+                        else if ((read choice::Int) == 3) then do
+                                                                putStrLn "Give list of transitions:"
+                                                                tlist <- getLine
+                                                                simulate (givetlist n (read tlist))
+                        else if ((read choice::Int) == 4) then do
+                                                                putStrLn "Enter String on which the NFA is run:"
+                                                                str <- getLine
+                                                                putStrLn (show (execNFA n (read str::String)))
+                                                                simulate n
+                        else                                 do 
+                                                                putStrLn "NFA successfully simulated:"
+
 
 
