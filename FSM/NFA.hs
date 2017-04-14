@@ -2,7 +2,8 @@
 
 module FSM.NFA where
         import Data.List
-        type NFA a = ([a],[Char], a->(Maybe Char)->[a], a, [a]) --try to derive Show, Read
+        type NFA a = ([a],[Char], a->(Maybe Char)->[a], a, [a]) --try to derive Show, Read Not possible
+        type PartNFA a = ([a],[[Char]],a->[Char]->[a],a,[a])
         -- empty language (base NFA)
         empty:: NFA ()
         empty = let delta _ _ = [] in ([()],[],delta,(),[])
@@ -62,6 +63,19 @@ module FSM.NFA where
 
         sigma:: (NFA a)->[Char]
         sigma (_,sg,_,_,_) = sg
+
+        deltaset::(Show a) => (NFA a)->IO ()
+        deltaset z@(q1,sig1,del1,s1,f1) = do
+                                            putStrLn "set of Transitions between states:\n"
+                                            prnt set
+                                          where set      = [(q,Just c,r) | q<-q1, c<-sig1, r<-(del1 q (Just c))] ++ [(q,Nothing,r) | q<-q1, r<-(del1 q Nothing)]
+                                                prnt x   = if ((length x) == 0)
+                                                           then
+                                                              do putStrLn "Done!\n"
+                                                           else
+                                                              do
+                                                                 putStrLn ((show (head x)) ++ ",\n")
+                                                                 prnt (tail x)
 
         givestlist:: (NFA a)->[a]->(NFA a)
         givestlist (q,sig,del,s,f) [] = (q,sig,del,s,f)
@@ -139,7 +153,68 @@ module FSM.NFA where
                                                                   ndel _ _                   = []
                                                               in  (nq,nsig,ndel,ns,nf)
 
+        formNFAfromPartial:: (Eq a) => (PartNFA a)-> (NFA [a])
+        formNFAfromPartial (q1,sig1,del1,s1,f1)             = let ns                         = [s1]
+                                                                  nq                         = [[q] | q<-q1]
+                                                                  nsig                       = sig1
+                                                                  nf                         = [[q] | q<-f1]
+                                                                  ndel [m] n                 = [[q] | q<-(del1 m n)]
+                                                              in  helperfNfP (nq,nsig,ndel,ns,nf) []
+
+        helperfNfP:: (Eq a) => (PartNFA [a])-> [Char] -> (NFA [a])
+        helperfNfp z@(q1,[],del1,s1,f1) sig2                  = let del2 m Nothing            = [q | q<-(del1 m "")]
+                                                                    del2 m (Just n)           = [q | q<-(del1 m [n])]
+                                                                in  (q1,sig2,del2,s1,f1)
+        helperfNfP z@(q1,x:sig1,del1,s1,f1) sig2              | (length x == 0) = helperfNfP (q1,sig1,del1,s1,f1) sig2
+                                                              | (length x == 1) = helperfNfP (q1,sig1,del1,s1,f1) (nub(sig2 ++ x))
+                                                              | otherwise       = let left          = [q | q<-q1, (del1 q x) /= []]
+                                                                                      right         = nub (foldr (++) [] [(del1 q x) | q<-q1])
+                                                                                      newstate      = (head left) ++ (head right)
+                                                                                      nq            = newstate:q1
+                                                                                      nsig2         = if ((head x) `elem` sig2) then sig2 else (head x):sig2
+                                                                                      nsig1         = (tail x):sig1
+                                                                                      ndel m n      | (n == x)                                       = []
+                                                                                                    | (m `elem` left)&&(n == [head x])               = [newstate]
+                                                                                                    | (m == newstate)&&(n == (tail x))               = right
+                                                                                                    | otherwise                                      = del1 m n
+                                                                                  in  helperfNfP (nq,nsig1,ndel,s1,f1) nsig2
+
+        formIntNFAfromPartial:: (PartNFA Int)-> (NFA Int)
+        formIntNFAfromPartial (q1,sig1,del1,s1,f1)          = let ns                         = s1
+                                                                  nq                         = q1
+                                                                  nsig                       = sig1
+                                                                  nf                         = f1
+                                                                  ndel m n                   = del1 m n
+                                                              in  helperfIntNfP (nq,nsig,ndel,ns,nf) [] (foldr (max) 0 q1)
+
+        helperfIntNfP:: (PartNFA Int)-> [Char] ->Int-> (NFA Int)
+        helperfIntNfp z@(q1,[],del1,s1,f1) sig2 ns            = let del2 m Nothing            = [q | q<-(del1 m "")]
+                                                                    del2 m (Just n)           = [q | q<-(del1 m [n])]
+                                                                in  (q1,sig2,del2,s1,f1)
+        helperfIntNfP z@(q1,x:sig1,del1,s1,f1) sig2 ns        | (length x == 0) = let nsig2 = sig2
+                                                                                      nns   = ns
+                                                                                  in  helperfIntNfP (q1,sig1,del1,s1,f1) nsig2 nns
+                                                              | (length x == 1) = let nsig2 = (nub(sig2 ++ x))
+                                                                                      nns   = ns
+                                                                                  in  helperfIntNfP (q1,sig1,del1,s1,f1) nsig2 nns
+                                                              | otherwise       = let left          = [q | q<-q1, (del1 q x) /= []]
+                                                                                      right         = nub (foldr (++) [] [(del1 q x) | q<-q1])
+                                                                                      newstate      = (ns + 1)
+                                                                                      nq            = newstate:q1
+                                                                                      nsig2         = if ((head x) `elem` sig2) then sig2 else (head x):sig2
+                                                                                      nsig1         = (tail x):sig1
+                                                                                      ndel m n      | (n == x)                                       = []
+                                                                                                    | (m `elem` left)&&(n == [head x])               = [newstate]
+                                                                                                    | (m == newstate)&&(n == (tail x))               = right
+                                                                                                    | otherwise                                      = del1 m n
+                                                                                  in  helperfIntNfP (nq,nsig1,ndel,s1,f1) nsig2 newstate
+
+
         
+
+
+
+
 
 
 
