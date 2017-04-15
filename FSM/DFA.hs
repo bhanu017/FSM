@@ -1,4 +1,6 @@
-module FSM.DFA where
+module DFA where
+    import Data.List
+    
 
     type DFA a = ([a], [Char], a->Char->[a], a, [a])
 
@@ -57,40 +59,83 @@ module FSM.DFA where
                                         where next = head (delta p x)
 
     -- set the list of states
-    givestlist:: (DFA a)->[a]->(DFA a)
-    givestlist (q,sigma,delta,s,f) [] = (q,sigma,delta,s,f)
-    givestlist (q,sigma,delta,s,f) ql = (ql,sigma,delta,head ql,f)
+    givestlistDFA:: (DFA a)->[a]->(DFA a)
+    givestlistDFA (q,sigma,delta,s,f) [] = (q,sigma,delta,s,f)
+    givestlistDFA (q,sigma,delta,s,f) ql = (ql,sigma,delta,head ql,f)
 
     -- set the list of accept states
-    giveflist:: (Eq a) => (DFA a)->[a]->(DFA a)
-    giveflist (q,sigma,delta,s,f) fl = (q,sigma,delta,s,[fq | fq <- fl, fq `elem` q])
+    giveflistDFA:: (Eq a) => (DFA a)->[a]->(DFA a)
+    giveflistDFA (q,sigma,delta,s,f) fl = (q,sigma,delta,s,[fq | fq <- fl, fq `elem` q])
 
     -- set the list of transitions
-    givetlist:: (Eq a) => (DFA a)->[((a,Char),a)]->(DFA a)
-    givetlist (q,sigma,delta,s,f) tl = foldr (flip newTransition) (q,sigma,let delta _ _ = [] in delta,s,f) tl
+    givetlistDFA:: (Eq a) => (DFA a)->[((a,Char),a)]->(DFA a)
+    givetlistDFA (q,sigma,delta,s,f) tl = foldr (flip newTransition) (q,sigma,let delta _ _ = [] in delta,s,f) tl
+
+
+    displayDFA :: (Show a) => (DFA a) -> IO()
+    displayDFA (q, sigma, delta, s, f) = do
+                                        putStr "< DFA >\n"
+                                        --putStr "< States > "
+                                        --prntstates q
+                                        putStr "< Transtions >\n"
+                                        prnttrans del
+                                        putStr "\n< Start State >\t = "
+                                        putStr $ show(s)
+                                        putStr "\n< Accept States >\t = "
+                                        prntf f
+                                        where prntf z = if((length z) /= 0)
+                                                        then
+                                                            do
+                                                                putStr $ (show(head z))
+                                                                putStr "\t"
+                                                                prntf (tail z)
+                                                        else
+                                                            do
+                                                                putStr ""
+                                              del = [((j, k) ,l) | j <- q, k <- sigma, l <- delta j k]
+                                              prnttrans w = if((length w) /= 0)
+                                                            then
+                                                                do
+                                                                    putStr "<from> "
+                                                                    putStr $ (show(fst(fst(head w))))
+                                                                    putStr "\t"
+                                                                    putStr "<read> "
+                                                                    putStr $ (show(snd(fst(head w))))
+                                                                    putStr "\t"
+                                                                    putStr "<to> "
+                                                                    putStr $ (show(snd(head w)))
+                                                                    putStr "\t"
+                                                                    putStr "\n"
+                                                                    prnttrans (tail w)
+                                                            else
+                                                                do
+                                                                    putStr ""
     
     -- run the program.
-    simulate:: (Eq a, Read a) => (DFA a)->IO ()
-    simulate n = do
-                        putStrLn "function? 1-givestlist, 2-giveflist, 3-givetlist, 4-exec, 5-exit"
+    simulateDFA:: (Eq a, Read a, Show a) => (DFA a)->IO ()
+    simulateDFA n = do
+                        putStrLn "function? 1-givestlistDFA, 2-giveflistDFA, 3-givetlistDFA, 4-display, 5-exec, 6-exit"
                         choice <- getLine
                         if ((read choice::Int) == 1) then do
                                                             putStrLn "Give list of states:"
                                                             stlist <- getLine
-                                                            simulate (givestlist n (read stlist))
+                                                            simulateDFA (givestlistDFA n (read stlist))
                         else if ((read choice::Int) == 2) then do
                                                                 putStrLn "Give list of final states:"
                                                                 flist <- getLine
-                                                                simulate (giveflist n (read flist))
+                                                                simulateDFA (giveflistDFA n (read flist))
                         else if ((read choice::Int) == 3) then do
                                                                 putStrLn "Give list of transitions:"
                                                                 tlist <- getLine
-                                                                simulate (givetlist n (read tlist))
+                                                                simulateDFA (givetlistDFA n (read tlist))
                         else if ((read choice::Int) == 4) then do
+                                                                displayDFA n
+                                                                simulateDFA n
+                        else if ((read choice::Int) == 5) then do
                                                                 putStrLn "Enter String on which the DFA is run:"
                                                                 str <- getLine
                                                                 putStrLn (show (execDFA n (read str::String)))
-                                                                simulate n
+                                                                simulateDFA n
                         else                                 do 
                                                                 putStrLn "DFA successfully simulated:"
 
@@ -117,3 +162,12 @@ module FSM.DFA where
         in (newq, newsigma, newdelta, newstart, newfinal)
 
 --concatenation
+--    concatNFA:: (Eq a, Eq b) => (DFA a)->(DFA b)->(NFA (Either a b))
+--    concatNFA (q1,sig1,del1,s1,f1) (q2,sig2,del2,s2,f2) = let nq = [Left q | q<-q1] ++ [Right q | q<-q2]
+--                                                              nsig = nub (sig1 ++ sig2)
+--                                                              ndel (Left m) n | (m `elem` f1) && (n == Nothing) = (Right s2):[Left q | q <- (del1 m Nothing)]
+  --                                                                            | otherwise = [Left q | q <- (del1 m n)]
+    --                                                          ndel (Right m) n = [Right q | q <- (del2 m n)]
+      --                                                        ns               = Left s1
+        --                                                      nf               = [Right q | q <- f2]
+          --                                                in  (nq,nsig,ndel,ns,nf)

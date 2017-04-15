@@ -1,17 +1,17 @@
 {-NFA-}
 
-module FSM.NFA where
+module NFA where
         import Data.List
-        import FSM.DFA
+        import DFA
         
         type NFA a = ([a],[Char], a->(Maybe Char)->[a], a, [a]) --try to derive Show, Read Not possible
         
         type PartNFA a = ([a],[[Char]],a->[Char]->[a],a,[a])
         
-        -- empty language (base NFA)
+        -- init NFA (base NFA)
         
-        empty:: NFA ()
-        empty = let delta _ _ = [] in ([()],[],delta,(),[])
+        initNFA:: a -> (NFA a)
+        initNFA a = let delta _ _ = [] in ([a],[],delta,a,[a])
 
         markStart:: (Eq a) => (NFA a)->a->(NFA a)
         markStart (x,sig,del,s,f) y = if (y `elem` x) then (x,sig,del,y,f) else (x,sig,del,s,f)
@@ -101,29 +101,68 @@ module FSM.NFA where
         givetlist:: (Eq a) => (NFA a)->[((a,(Maybe Char)),a)]->(NFA a)
         givetlist (q,sig,del,s,f) tl = foldr (flip addTransition) (q,sig,let delta _ _ = [] in delta,s,f) tl
 
+
+        displayNFA :: (Show a) => (NFA a) -> IO()
+        displayNFA (q, sigma, delta1, s, f) = do
+                                            putStr "< NFA >\n"
+                                            --prntstates q
+                                            putStr "< Transtions >"
+                                            prntdelta del
+                                            putStr "\n< Start State >"
+                                            putStr $ (show(s))
+                                            putStr "\n< Accept states >"
+                                            prntf f
+                                            where prntf z = if((length z) /= 0)
+                                                            then
+                                                                do
+                                                                    putStr $ (show(head z))
+                                                                    putStr "\t"
+                                                                    prntf (tail z)
+                                                            else
+                                                                do
+                                                                    putStr ""
+                                                  del = [((j,k),l) | j <- q, k <- sigma, l <- (delta1 j (Just k))] ++ [((j,'?'),l) | j <- q, l <- (delta1 j Nothing)]
+                                                  prntdelta w = if((length w) /= 0)
+                                                                then
+                                                                    do
+                                                                        putStr "<from> "
+                                                                        putStr $ (show(fst(fst(head w))))
+                                                                        putStr "\t<read> "
+                                                                        putStr(show(snd(fst(head w))))
+                                                                        putStr "\t<to> "
+                                                                        putStr $ (show(snd(head w)))
+                                                                        putStr "\n"
+                                                                        prntdelta (tail w)
+                                                                else
+                                                                    do
+                                                                        putStr ""
+
         
-        simulate:: (Eq a, Read a) => (NFA a)->IO ()
+        simulateNFA:: (Eq a, Read a, Show a) => (NFA a)->IO ()
         
-        simulate n = do
-                        putStrLn "function? 1-givestlist, 2-giveflist, 3-givetlist, 4-exec, 5-exit"
+        simulateNFA n = do
+                        putStrLn "function? 1-givestlist, 2-giveflist, 3-givetlist, 4-display, 5-exec, 6-exit"
                         choice <- getLine
                         if ((read choice::Int) == 1) then do
                                                             putStrLn "Give list of states:"
                                                             stlist <- getLine
-                                                            simulate (givestlist n (read stlist))
+                                                            simulateNFA (givestlist n (read stlist))
                         else if ((read choice::Int) == 2) then do
                                                                 putStrLn "Give list of final states:"
                                                                 flist <- getLine
-                                                                simulate (giveflist n (read flist))
+                                                                simulateNFA (giveflist n (read flist))
                         else if ((read choice::Int) == 3) then do
                                                                 putStrLn "Give list of transitions:"
                                                                 tlist <- getLine
-                                                                simulate (givetlist n (read tlist))
-                        else if ((read choice::Int) == 4) then do
+                                                                simulateNFA (givetlist n (read tlist))
+                        else if ((read choice::Int) == 4) then do 
+                                                                displayNFA n
+                                                                simulateNFA n
+                        else if ((read choice::Int) == 5) then do
                                                                 putStrLn "Enter String on which the NFA is run:"
                                                                 str <- getLine
                                                                 putStrLn (show (execNFA n (read str::String)))
-                                                                simulate n
+                                                                simulateNFA n
                         else                                 do 
                                                                 putStrLn "NFA successfully simulated:"
 
